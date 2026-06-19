@@ -18,6 +18,11 @@ export default function DealDetailModal({ dealId, onClose }) {
   const [clientId, setClientId] = useState('');
   const [managerId, setManagerId] = useState('');
   const [notes, setNotes] = useState('');
+  const [prepayment, setPrepayment] = useState(0);
+  const [paymentStatus, setPaymentStatus] = useState('unpaid');
+  const [isOutsourced, setIsOutsourced] = useState(false);
+  const [contractorName, setContractorName] = useState('');
+  const [contractorCost, setContractorCost] = useState(0);
 
   // 3D Print Job States
   const [printJob, setPrintJob] = useState(null);
@@ -86,6 +91,11 @@ export default function DealDetailModal({ dealId, onClose }) {
       setClientId(dealData.client_id || '');
       setManagerId(dealData.assigned_manager || '');
       setNotes(dealData.notes || '');
+      setPrepayment(dealData.prepayment || 0);
+      setPaymentStatus(dealData.payment_status || 'unpaid');
+      setIsOutsourced(!!dealData.is_outsourced);
+      setContractorName(dealData.contractor_name || '');
+      setContractorCost(dealData.contractor_cost || 0);
 
       // 2. Fetch Client list
       const { data: clientsData } = await supabase
@@ -271,6 +281,11 @@ export default function DealDetailModal({ dealId, onClose }) {
           client_id: clientId || null,
           assigned_manager: managerId || null,
           notes,
+          prepayment: Number(prepayment),
+          payment_status: paymentStatus,
+          is_outsourced: isOutsourced,
+          contractor_name: isOutsourced ? contractorName.trim() || null : null,
+          contractor_cost: isOutsourced ? Number(contractorCost) : 0,
           updated_at: new Date().toISOString()
         })
         .eq('id', dealId);
@@ -383,6 +398,213 @@ export default function DealDetailModal({ dealId, onClose }) {
     setCalcMatRate(presets.matRate);
   };
 
+  const handlePrintTechCard = () => {
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    if (!printWindow) {
+      alert('Всплывающее окно заблокировано браузером/системой.');
+      return;
+    }
+    
+    const clientName = clients.find(c => c.id === clientId)?.name || 'Не указан';
+    const managerName = managers.find(m => m.id === managerId)?.full_name || 'Не назначен';
+    
+    let specHtml = '';
+    if (dealType === '3d_printing') {
+      specHtml = `
+        <div class="spec-section">
+          <h3>Параметры 3D-печати</h3>
+          <table>
+            <tr><td><b>Материал (Пластик):</b></td><td>${materialType}</td></tr>
+            <tr><td><b>Цвет:</b></td><td>${color || 'Черный'}</td></tr>
+            <tr><td><b>Вес детали:</b></td><td>${weightGrams} грамм</td></tr>
+            <tr><td><b>Время печати:</b></td><td>${printTimeHours} часов</td></tr>
+            <tr><td><b>Модель принтера:</b></td><td>${printerName || 'Не указан'}</td></tr>
+            <tr><td><b>Статус:</b></td><td>${printStatus === 'queued' ? 'В очереди' : 
+                                            printStatus === 'printing' ? 'Печатается' : 
+                                            printStatus === 'finished' ? 'Завершено успешно' : 
+                                            printStatus === 'failed' ? 'Брак / Сбой' : 
+                                            printStatus === 'post_processing' ? 'Постобработка' : printStatus}</td></tr>
+          </table>
+        </div>
+      `;
+    } else if (dealType === 'outdoor_ads') {
+      specHtml = `
+        <div class="spec-section">
+          <h3>Параметры конструкции</h3>
+          <table>
+            <tr><td><b>Тип конструкции:</b></td><td>${adType}</td></tr>
+            <tr><td><b>Ширина:</b></td><td>${widthM} м</td></tr>
+            <tr><td><b>Высота:</b></td><td>${heightM} м</td></tr>
+            <tr><td><b>Площадь:</b></td><td>${Number(widthM * heightM).toFixed(2)} м² (Периметр: ${Number(2 * (widthM + heightM)).toFixed(2)} м)</td></tr>
+            <tr><td><b>Используемые материалы:</b></td><td>${materialsUsed || 'Не указаны'}</td></tr>
+            <tr><td><b>Монтаж требуется:</b></td><td>${mountingRequired ? 'Да' : 'Нет'}</td></tr>
+            ${mountingRequired ? `<tr><td><b>Адрес монтажа:</b></td><td>${installationAddress || 'Не указан'}</td></tr>` : ''}
+            <tr><td><b>Этап производства:</b></td><td>${outdoorStatus === 'design' ? 'Дизайн / Согласование' : 
+                                            outdoorStatus === 'printing' ? 'Печать' : 
+                                            outdoorStatus === 'assembly' ? 'Сборка' : 
+                                            outdoorStatus === 'installation' ? 'Доставка и Монтаж' : 
+                                            outdoorStatus === 'completed' ? 'Сдано' : outdoorStatus}</td></tr>
+          </table>
+        </div>
+      `;
+    } else {
+      specHtml = `<p>Общая сделка без производственных параметров.</p>`;
+    }
+
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Технологическая карта - ${title}</title>
+          <style>
+            body {
+              font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+              padding: 40px;
+              color: #1e293b;
+              line-height: 1.6;
+            }
+            .header {
+              border-bottom: 3px solid #0f172a;
+              padding-bottom: 16px;
+              margin-bottom: 24px;
+            }
+            .header h1 {
+              margin: 0 0 6px 0;
+              font-size: 26px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: -0.02em;
+            }
+            .meta-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px 24px;
+              margin-bottom: 24px;
+              font-size: 14px;
+            }
+            .meta-item {
+              padding: 6px 0;
+              border-bottom: 1px solid #f1f5f9;
+            }
+            .meta-item b {
+              color: #64748b;
+              font-weight: 600;
+            }
+            .spec-section {
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 8px;
+              padding: 20px;
+              margin-bottom: 24px;
+            }
+            .spec-section h3 {
+              margin-top: 0;
+              margin-bottom: 16px;
+              border-bottom: 2px solid #cbd5e1;
+              padding-bottom: 6px;
+              color: #0f172a;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            td {
+              padding: 8px 0;
+              border-bottom: 1px solid #f1f5f9;
+              font-size: 14px;
+            }
+            td:first-child {
+              width: 40%;
+              color: #64748b;
+              font-weight: 600;
+            }
+            td:last-child {
+              color: #0f172a;
+              font-weight: 500;
+            }
+            .notes-section {
+              margin-bottom: 40px;
+            }
+            .notes-section h3 {
+              font-size: 16px;
+              margin-bottom: 10px;
+              color: #0f172a;
+            }
+            .notes-box {
+              border: 1.5px dashed #94a3b8;
+              border-radius: 6px;
+              padding: 16px;
+              min-height: 100px;
+              white-space: pre-wrap;
+              background: #fff;
+              font-size: 13px;
+              color: #334155;
+            }
+            .footer-signature {
+              margin-top: 80px;
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 60px;
+            }
+            .sig-line {
+              border-top: 1px solid #475569;
+              margin-top: 40px;
+              text-align: center;
+              font-size: 12px;
+              color: #475569;
+            }
+            @media print {
+              body { padding: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="no-print" style="margin-bottom: 20px; text-align: right;">
+            <button onclick="window.print()" style="padding: 10px 20px; background: #3b82f6; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">Печать</button>
+            <button onclick="window.close()" style="padding: 10px 20px; background: #64748b; color: #fff; border: none; border-radius: 6px; cursor: pointer; margin-left: 10px; font-size: 13px;">Закрыть</button>
+          </div>
+          
+          <div class="header">
+            <h1>Технологическая карта заказа</h1>
+            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">ID: ${dealId.slice(0, 8).toUpperCase()} | Дата выпуска: ${new Date().toLocaleDateString('ru-RU')}</div>
+          </div>
+
+          <div class="meta-grid">
+            <div class="meta-item"><b>Название заказа:</b> ${title}</div>
+            <div class="meta-item"><b>Тип:</b> ${dealType === '3d_printing' ? '3D Печать' : dealType === 'outdoor_ads' ? 'Наружная реклама' : 'Общий'}</div>
+            <div class="meta-item"><b>Клиент:</b> ${clientName}</div>
+            <div class="meta-item"><b>Менеджер:</b> ${managerName}</div>
+          </div>
+
+          ${specHtml}
+
+          <div class="notes-section">
+            <h3>Заметки / Особые указания:</h3>
+            <div class="notes-box">${notes || 'Дополнительные указания отсутствуют.'}</div>
+          </div>
+
+          <div class="footer-signature">
+            <div>
+              <div class="sig-line">Подпись технолога / менеджера</div>
+            </div>
+            <div>
+              <div class="sig-line">Подпись исполнителя (мастера)</div>
+            </div>
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   if (loading) {
     return (
       <div style={{
@@ -434,9 +656,22 @@ export default function DealDetailModal({ dealId, onClose }) {
             </span>
             <h3 style={{ fontSize: '20px', fontWeight: '800', fontFamily: 'Outfit', marginTop: '2px' }}>{title || 'Сделка без названия'}</h3>
           </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-            <X size={22} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {(dealType === '3d_printing' || dealType === 'outdoor_ads') && (
+              <button 
+                type="button"
+                className="btn btn-secondary" 
+                onClick={handlePrintTechCard}
+                style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)' }}
+              >
+                <Printer size={14} />
+                Техкарта
+              </button>
+            )}
+            <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+              <X size={22} />
+            </button>
+          </div>
         </div>
 
         {/* Double Column Form Layout */}
@@ -527,14 +762,133 @@ export default function DealDetailModal({ dealId, onClose }) {
               </select>
             </div>
 
-            <div className="form-group" style={{ flex: 1 }}>
+            {/* Payment & Debt Tracking */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '10px',
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
+                💰 Оплата и задолженность
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">ВНЕСЕННАЯ ПРЕДОПЛАТА (РУБ)</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    value={prepayment} 
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setPrepayment(val);
+                      if (val >= Number(cost) && Number(cost) > 0) {
+                        setPaymentStatus('paid');
+                      } else if (val > 0) {
+                        setPaymentStatus('partially_paid');
+                      } else {
+                        setPaymentStatus('unpaid');
+                      }
+                    }} 
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">СТАТУС ОПЛАТЫ</label>
+                  <select 
+                    className="form-control" 
+                    value={paymentStatus} 
+                    onChange={(e) => {
+                      const status = e.target.value;
+                      setPaymentStatus(status);
+                      if (status === 'paid') {
+                        setPrepayment(Number(cost));
+                      } else if (status === 'unpaid') {
+                        setPrepayment(0);
+                      }
+                    }}
+                  >
+                    <option value="unpaid">Не оплачен</option>
+                    <option value="partially_paid">Частично оплачен (предоплата)</option>
+                    <option value="paid">Оплачен полностью</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', paddingTop: '4px' }}>
+                <span>Остаток к оплате (Долг):</span>
+                <span style={{ fontWeight: '700', color: (Number(cost) - prepayment) > 0 ? 'var(--error)' : 'var(--success)' }}>
+                  {new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(Math.max(0, Number(cost) - prepayment))}
+                </span>
+              </div>
+            </div>
+
+            {/* Subcontracting / Outsourcing module */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '10px',
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label className="switch" style={{ width: '32px', height: '18px' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={isOutsourced} 
+                    onChange={(e) => setIsOutsourced(e.target.checked)} 
+                  />
+                  <span className="slider" style={{ borderRadius: '18px' }}></span>
+                </label>
+                <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '700' }}>🤝 Перезаказ (Аутсорсинг)</span>
+              </div>
+
+              {isOutsourced && (
+                <div className="form-row animate-fade-in" style={{ marginTop: '4px' }}>
+                  <div className="form-group">
+                    <label className="form-label">ПОДРЯДЧИК</label>
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      placeholder="Имя подрядчика"
+                      value={contractorName} 
+                      onChange={(e) => setContractorName(e.target.value)} 
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">СЕБЕСТОИМОСТЬ (РУБ)</label>
+                    <input 
+                      type="number" 
+                      className="form-control" 
+                      value={contractorCost} 
+                      onChange={(e) => setContractorCost(Number(e.target.value))} 
+                    />
+                  </div>
+                </div>
+              )}
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', paddingTop: '4px' }}>
+                <span>Чистая маржа с учетом аутсорсинга:</span>
+                <span style={{ fontWeight: '700', color: 'var(--success)' }}>
+                  {new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(Math.max(0, Number(cost) - (isOutsourced ? contractorCost : 0)))}
+                </span>
+              </div>
+            </div>
+
+            <div className="form-group" style={{ minHeight: '100px' }}>
               <label className="form-label">ЗАМЕТКИ И ОПИСАНИЕ</label>
               <textarea 
                 className="form-control" 
                 rows="4" 
                 value={notes} 
                 onChange={(e) => setNotes(e.target.value)} 
-                style={{ resize: 'none', height: '100%', minHeight: '80px' }}
+                style={{ resize: 'none', height: '80px' }}
                 placeholder="Дополнительные комментарии к сделке..."
               />
             </div>

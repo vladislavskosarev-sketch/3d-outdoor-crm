@@ -18,6 +18,9 @@ export default function Dashboard() {
     pipelineValue: 0,
     activePrints: 0,
     pendingTasks: 0,
+    receivedPayments: 0,
+    outstandingDebt: 0,
+    netMargin: 0,
   });
   const [recentTasks, setRecentTasks] = useState([]);
   const [printerQueue, setPrinterQueue] = useState([]);
@@ -28,22 +31,40 @@ export default function Dashboard() {
     if (!supabase) return;
     setLoading(true);
     try {
-      // 1. Fetch Deals Stats
+      // 1. Fetch Deals Stats with new payment & outsourcing fields
       const { data: deals, error: dealsErr } = await supabase
         .from('deals')
-        .select('cost, stage, deal_type');
+        .select('cost, stage, deal_type, prepayment, is_outsourced, contractor_cost');
       
       if (dealsErr) throw dealsErr;
 
       let totalValue = 0;
       let activeDealsCount = 0;
+      let totalReceivedPayments = 0;
+      let totalOutstandingDebt = 0;
+      let totalNetMargin = 0;
       const stages = {};
       
       deals?.forEach(deal => {
+        const dealCost = Number(deal.cost || 0);
+        const dealPrepayment = Number(deal.prepayment || 0);
+        const dealContractorCost = deal.is_outsourced ? Number(deal.contractor_cost || 0) : 0;
+
+        // Active pipeline calculations (excluding closed deals)
         if (deal.stage !== 'closed_won' && deal.stage !== 'closed_lost') {
           activeDealsCount++;
-          totalValue += Number(deal.cost || 0);
+          totalValue += dealCost;
+          totalOutstandingDebt += Math.max(0, dealCost - dealPrepayment);
         }
+
+        // Total payments received (from all deals)
+        totalReceivedPayments += dealPrepayment;
+
+        // Net margin (revenues minus contractor cost) - exclude lost deals
+        if (deal.stage !== 'closed_lost') {
+          totalNetMargin += (dealCost - dealContractorCost);
+        }
+
         stages[deal.stage] = (stages[deal.stage] || 0) + 1;
       });
 
@@ -70,6 +91,9 @@ export default function Dashboard() {
         pipelineValue: totalValue,
         activePrints: activePrintsData?.length || 0,
         pendingTasks: tasksData?.length || 0,
+        receivedPayments: totalReceivedPayments,
+        outstandingDebt: totalOutstandingDebt,
+        netMargin: totalNetMargin,
       });
       setRecentTasks(tasksData || []);
       setPrinterQueue(activePrintsData || []);
@@ -133,11 +157,11 @@ export default function Dashboard() {
       {/* KPI Cards Grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
         gap: '24px',
         marginBottom: '32px'
       }}>
-        {/* KPI 1 */}
+        {/* KPI 1: Active Deals */}
         <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '20px 24px' }}>
           <div style={{
             background: 'rgba(139, 92, 246, 0.15)',
@@ -148,30 +172,12 @@ export default function Dashboard() {
             <TrendingUp size={24} />
           </div>
           <div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '500' }}>Сделки в воронке</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '500' }}>Активные сделки</div>
             <div style={{ fontSize: '24px', fontWeight: '800', marginTop: '4px', fontFamily: 'Outfit' }}>{stats.totalDeals}</div>
           </div>
         </div>
 
-        {/* KPI 2 */}
-        <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '20px 24px' }}>
-          <div style={{
-            background: 'rgba(16, 185, 129, 0.15)',
-            color: 'var(--success)',
-            padding: '12px',
-            borderRadius: '12px'
-          }}>
-            <DollarSign size={24} />
-          </div>
-          <div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '500' }}>Общая сумма сделок</div>
-            <div style={{ fontSize: '24px', fontWeight: '800', marginTop: '4px', fontFamily: 'Outfit' }}>
-              {new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(stats.pipelineValue)}
-            </div>
-          </div>
-        </div>
-
-        {/* KPI 3 */}
+        {/* KPI 2: Pipeline Budget */}
         <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '20px 24px' }}>
           <div style={{
             background: 'rgba(6, 182, 212, 0.15)',
@@ -179,15 +185,71 @@ export default function Dashboard() {
             padding: '12px',
             borderRadius: '12px'
           }}>
-            <Printer size={24} />
+            <DollarSign size={24} />
           </div>
           <div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '500' }}>Печать в очереди</div>
-            <div style={{ fontSize: '24px', fontWeight: '800', marginTop: '4px', fontFamily: 'Outfit' }}>{stats.activePrints}</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '500' }}>Бюджет воронки</div>
+            <div style={{ fontSize: '24px', fontWeight: '800', marginTop: '4px', fontFamily: 'Outfit' }}>
+              {new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(stats.pipelineValue)}
+            </div>
           </div>
         </div>
 
-        {/* KPI 4 */}
+        {/* KPI 3: Prepayments Received */}
+        <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '20px 24px' }}>
+          <div style={{
+            background: 'rgba(16, 185, 129, 0.15)',
+            color: 'var(--success)',
+            padding: '12px',
+            borderRadius: '12px'
+          }}>
+            <DollarSign size={24} style={{ color: 'var(--success)' }} />
+          </div>
+          <div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '500' }}>Получено предоплат</div>
+            <div style={{ fontSize: '24px', fontWeight: '800', marginTop: '4px', fontFamily: 'Outfit', color: 'var(--success)' }}>
+              {new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(stats.receivedPayments)}
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 4: Outstanding Debt */}
+        <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '20px 24px' }}>
+          <div style={{
+            background: 'rgba(239, 68, 68, 0.15)',
+            color: 'var(--error)',
+            padding: '12px',
+            borderRadius: '12px'
+          }}>
+            <AlertCircle size={24} />
+          </div>
+          <div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '500' }}>Дебиторский долг</div>
+            <div style={{ fontSize: '24px', fontWeight: '800', marginTop: '4px', fontFamily: 'Outfit', color: 'var(--error)' }}>
+              {new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(stats.outstandingDebt)}
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 5: Net Margin */}
+        <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '20px 24px' }}>
+          <div style={{
+            background: 'rgba(16, 185, 129, 0.25)',
+            color: '#10b981',
+            padding: '12px',
+            borderRadius: '12px'
+          }}>
+            <TrendingUp size={24} />
+          </div>
+          <div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '500' }}>Чистая прибыль</div>
+            <div style={{ fontSize: '24px', fontWeight: '800', marginTop: '4px', fontFamily: 'Outfit', color: '#10b981' }}>
+              {new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(stats.netMargin)}
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 6: Pending Tasks */}
         <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '20px 24px' }}>
           <div style={{
             background: 'rgba(245, 158, 11, 0.15)',

@@ -339,6 +339,63 @@ export default function KanbanBoard() {
                       <span>{deal.clients?.name || 'Нет клиента'}</span>
                     </div>
 
+                    {/* Payment & Outsourcing Status Badges */}
+                    <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                      {deal.payment_status === 'paid' && (
+                        <span style={{
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '10px',
+                          fontWeight: '600',
+                          background: 'rgba(16, 185, 129, 0.15)',
+                          color: 'var(--success)',
+                          border: '1px solid rgba(16, 185, 129, 0.25)'
+                        }}>
+                          Оплачен
+                        </span>
+                      )}
+                      {deal.payment_status === 'partially_paid' && (
+                        <span style={{
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '10px',
+                          fontWeight: '600',
+                          background: 'rgba(245, 158, 11, 0.15)',
+                          color: 'var(--warning)',
+                          border: '1px solid rgba(245, 158, 11, 0.25)'
+                        }}>
+                          Предоплата: {new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(deal.prepayment)} ₽
+                        </span>
+                      )}
+                      {deal.payment_status === 'unpaid' && Number(deal.cost || 0) > 0 && (
+                        <span style={{
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '10px',
+                          fontWeight: '600',
+                          background: 'rgba(239, 68, 68, 0.15)',
+                          color: 'var(--error)',
+                          border: '1px solid rgba(239, 68, 68, 0.25)'
+                        }}>
+                          Не оплачен
+                        </span>
+                      )}
+                      
+                      {deal.is_outsourced && (
+                        <span style={{
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '10px',
+                          fontWeight: '600',
+                          background: 'rgba(59, 130, 246, 0.15)',
+                          color: '#60a5fa',
+                          border: '1px solid rgba(59, 130, 246, 0.25)'
+                        }}>
+                          Перезаказ
+                        </span>
+                      )}
+                    </div>
+
                     <div style={{ 
                       display: 'flex', 
                       justifyContent: 'space-between', 
