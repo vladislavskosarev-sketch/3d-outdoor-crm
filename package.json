@@ -5,7 +5,7 @@
   "main": "electron/main.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/skosar/3d-outdoor-crm.git"
+    "url": "https://github.com/vladislavskosarev-sketch/3d-outdoor-crm.git"
   },
   "scripts": {
     "dev": "concurrently \"vite\" \"wait-on http://127.0.0.1:5173 && electron .\"",
@@ -44,7 +44,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "skosar",
+        "owner": "vladislavskosarev-sketch",
         "repo": "3d-outdoor-crm"
       }
     ],
