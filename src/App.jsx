@@ -11,7 +11,9 @@ import Clients from './views/Clients';
 import Tasks from './views/Tasks';
 import UserSettings from './views/UserSettings';
 import Warehouse from './views/Warehouse';
+import Settings from './views/Settings';
 import { Loader2, ShieldAlert, Clock, LogOut, X } from 'lucide-react';
+
 
 function AppContent() {
   const { isConnected, user, profile, profileError, loading, logout, refreshProfile } = useAuth();
@@ -263,8 +265,11 @@ function AppContent() {
         return <UserSettings />;
       case 'warehouse':
         return <Warehouse />;
+      case 'settings':
+        return <Settings />;
       default:
         return <Dashboard />;
+
     }
   };
 

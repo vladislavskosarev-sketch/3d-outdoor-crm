@@ -3,6 +3,11 @@ import { supabase } from '../supabaseClient';
 import { X, Trash2, Save, Printer, Compass, Info, Calculator } from 'lucide-react';
 
 export default function DealDetailModal({ dealId, onClose }) {
+  const getLocalNum = (key, fallback) => {
+    const val = localStorage.getItem(key);
+    return val !== null ? Number(val) : fallback;
+  };
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deal, setDeal] = useState(null);
@@ -34,14 +39,14 @@ export default function DealDetailModal({ dealId, onClose }) {
   const [printStatus, setPrintStatus] = useState('queued');
 
   // 3D Calculator presets
-  const [calcMatRate, setCalcMatRate] = useState(1500); // RUB per kg
-  const [calcPrinterPrice, setCalcPrinterPrice] = useState(40000); // RUB
-  const [calcPrinterLifespan, setCalcPrinterLifespan] = useState(8000); // hours
-  const [calcPrinterPower, setCalcPrinterPower] = useState(350); // Watts
-  const [calcElectricityRate, setCalcElectricityRate] = useState(6); // RUB/kWh
+  const [calcMatRate, setCalcMatRate] = useState(getLocalNum('default_calc_mat_rate_pla', 1500)); // RUB per kg
+  const [calcPrinterPrice, setCalcPrinterPrice] = useState(getLocalNum('default_calc_printer_price', 40000)); // RUB
+  const [calcPrinterLifespan, setCalcPrinterLifespan] = useState(getLocalNum('default_calc_printer_lifespan', 8000)); // hours
+  const [calcPrinterPower, setCalcPrinterPower] = useState(getLocalNum('default_calc_printer_power', 350)); // Watts
+  const [calcElectricityRate, setCalcElectricityRate] = useState(getLocalNum('default_calc_electricity_rate', 6)); // RUB/kWh
   const [calcPostHours, setCalcPostHours] = useState(0); // hours
-  const [calcPostRate, setCalcPostRate] = useState(300); // RUB per hour
-  const [calcMarkup, setCalcMarkup] = useState(50); // % markup
+  const [calcPostRate, setCalcPostRate] = useState(getLocalNum('default_calc_post_rate', 300)); // RUB per hour
+  const [calcMarkup, setCalcMarkup] = useState(getLocalNum('default_calc_markup', 50)); // % markup
   const [printCalcResult, setPrintCalcResult] = useState(0);
 
   // Outdoor Ads Job States
@@ -56,20 +61,21 @@ export default function DealDetailModal({ dealId, onClose }) {
 
   // Outdoor Calculator states
   const [outdoorCalcType, setOutdoorCalcType] = useState('banner'); // 'banner' or 'lightbox'
-  const [calcMatSqmRate, setCalcMatSqmRate] = useState(600); // Material price per sqm (RUB)
-  const [calcWeldRate, setCalcWeldRate] = useState(100); // Edge welding per linear meter (RUB)
+  const [calcMatSqmRate, setCalcMatSqmRate] = useState(getLocalNum('default_calc_mat_sqm_rate', 600)); // Material price per sqm (RUB)
+  const [calcWeldRate, setCalcWeldRate] = useState(getLocalNum('default_calc_weld_rate', 100)); // Edge welding per linear meter (RUB)
   const [calcEyeletsCount, setCalcEyeletsCount] = useState(0);
-  const [calcEyeletPrice, setCalcEyeletPrice] = useState(15); // per piece
+  const [calcEyeletPrice, setCalcEyeletPrice] = useState(getLocalNum('default_calc_eyelet_price', 15)); // per piece
   const [calcFrameRequired, setCalcFrameRequired] = useState(false);
-  const [calcFrameRate, setCalcFrameRate] = useState(300); // per meter
-  const [calcProfileRate, setCalcProfileRate] = useState(800); // per meter
+  const [calcFrameRate, setCalcFrameRate] = useState(getLocalNum('default_calc_frame_rate', 300)); // per meter
+  const [calcProfileRate, setCalcProfileRate] = useState(getLocalNum('default_calc_profile_rate', 800)); // per meter
   const [calcLedCount, setCalcLedCount] = useState(0);
-  const [calcLedPrice, setCalcLedPrice] = useState(45); // per module
+  const [calcLedPrice, setCalcLedPrice] = useState(getLocalNum('default_calc_led_price', 45)); // per module
   const [calcPowerSupplyCount, setCalcPowerSupplyCount] = useState(0);
-  const [calcPowerSupplyPrice, setCalcPowerSupplyPrice] = useState(1200); // per unit
-  const [calcDesignFee, setCalcDesignFee] = useState(2000); // Design/mounting flat fee
-  const [calcOutdoorMarkup, setCalcOutdoorMarkup] = useState(50); // % markup
+  const [calcPowerSupplyPrice, setCalcPowerSupplyPrice] = useState(getLocalNum('default_calc_power_supply_price', 1200)); // per unit
+  const [calcDesignFee, setCalcDesignFee] = useState(getLocalNum('default_calc_design_fee', 2000)); // Design/mounting flat fee
+  const [calcOutdoorMarkup, setCalcOutdoorMarkup] = useState(getLocalNum('default_calc_outdoor_markup', 50)); // % markup
   const [outdoorCalcResult, setOutdoorCalcResult] = useState(0);
+
 
   const loadDealData = async () => {
     if (!supabase) return;
@@ -383,14 +389,15 @@ export default function DealDetailModal({ dealId, onClose }) {
 
   const getPresetValues = (mat) => {
     switch (mat) {
-      case 'PLA': return { matRate: 1500 };
-      case 'PETG': return { matRate: 1800 };
-      case 'ABS': return { matRate: 1700 };
-      case 'TPU': return { matRate: 3500 };
-      case 'Nylon': return { matRate: 4000 };
-      default: return { matRate: 1500 };
+      case 'PLA': return { matRate: getLocalNum('default_calc_mat_rate_pla', 1500) };
+      case 'PETG': return { matRate: getLocalNum('default_calc_mat_rate_petg', 1800) };
+      case 'ABS': return { matRate: getLocalNum('default_calc_mat_rate_abs', 1700) };
+      case 'TPU': return { matRate: getLocalNum('default_calc_mat_rate_tpu', 3500) };
+      case 'Nylon': return { matRate: getLocalNum('default_calc_mat_rate_nylon', 4000) };
+      default: return { matRate: getLocalNum('default_calc_mat_rate_pla', 1500) };
     }
   };
+
 
   const handleMaterialChange = (mat) => {
     setMaterialType(mat);

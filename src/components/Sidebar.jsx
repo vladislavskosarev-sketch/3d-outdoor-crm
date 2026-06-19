@@ -11,6 +11,7 @@ import {
   UserCircle,
   Archive
 } from 'lucide-react';
+import logoImg from '../../build/icon.png';
 
 export default function Sidebar({ activeView, onViewChange }) {
   const { user, profile, logout } = useAuth();
@@ -46,7 +47,8 @@ export default function Sidebar({ activeView, onViewChange }) {
     { id: 'clients', label: 'Клиенты', icon: <Users size={18} />, roles: ['admin', 'manager'] },
     { id: 'tasks', label: 'Задачи', icon: <CheckSquare size={18} />, roles: ['admin', 'manager', 'technician'] },
     { id: 'warehouse', label: 'Склад', icon: <Archive size={18} />, roles: ['admin', 'manager', 'technician'] },
-    { id: 'users', label: 'Сотрудники', icon: <Settings size={18} />, roles: ['admin'] }
+    { id: 'users', label: 'Сотрудники', icon: <Users size={18} />, roles: ['admin'] },
+    { id: 'settings', label: 'Настройки', icon: <Settings size={18} />, roles: ['admin', 'manager', 'technician'] }
   ];
 
   const filteredMenuItems = menuItems.filter(item => 
@@ -75,13 +77,17 @@ export default function Sidebar({ activeView, onViewChange }) {
         alignItems: 'center',
         gap: '10px'
       }}>
-        <div style={{
-          width: '32px',
-          height: '32px',
-          borderRadius: '8px',
-          background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)',
-          boxShadow: '0 0 10px var(--primary-glow)'
-        }} />
+        <img 
+          src={logoImg} 
+          alt="3D & AD CRM Logo" 
+          style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '8px',
+            objectFit: 'cover',
+            boxShadow: '0 0 10px var(--primary-glow)'
+          }} 
+        />
         <span style={{ 
           fontSize: '18px', 
           fontWeight: '800', 
@@ -93,6 +99,7 @@ export default function Sidebar({ activeView, onViewChange }) {
           3D & AD CRM
         </span>
       </div>
+
 
       {/* Navigation menu */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>

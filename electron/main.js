@@ -86,3 +86,19 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
+
+ipcMain.on('check-for-updates', () => {
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdates().catch(err => {
+      if (mainWindow) mainWindow.webContents.send('update-message', { status: 'error', text: 'Ошибка при ручной проверке: ' + err.toString() });
+    });
+  } else {
+    if (mainWindow) {
+      mainWindow.webContents.send('update-message', { status: 'checking', text: 'Проверка обновлений (режим разработки)...' });
+      setTimeout(() => {
+        if (mainWindow) mainWindow.webContents.send('update-message', { status: 'not-available', text: 'В режиме разработки обновления недоступны.' });
+      }, 1500);
+    }
+  }
+});
+
