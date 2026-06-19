@@ -1,13 +1,24 @@
 import { createClient } from '@supabase/supabase-js';
 
-let supabaseUrl = localStorage.getItem('supabase_url') || '';
-let supabaseAnonKey = localStorage.getItem('supabase_anon_key') || '';
+// Default pre-configured database settings for your team
+const DEFAULT_URL = 'https://anfpszghwoizjwsubijg.supabase.co';
+const DEFAULT_KEY = 'sb_publishable_dQB_5jOAins25VvDvKV9qw_flppCPMj';
+
+let supabaseUrl = localStorage.getItem('supabase_url') || DEFAULT_URL;
+let supabaseAnonKey = localStorage.getItem('supabase_anon_key') || DEFAULT_KEY;
 
 export let supabase = null;
 
+// Strip any trailing slashes or REST paths
+const getCleanUrl = (url) => {
+  if (!url) return '';
+  return url.trim().replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
+};
+
 if (supabaseUrl && supabaseAnonKey) {
   try {
-    supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const cleanUrl = getCleanUrl(supabaseUrl);
+    supabase = createClient(cleanUrl, supabaseAnonKey.trim());
   } catch (error) {
     console.error('Failed to initialize Supabase client:', error);
   }
@@ -18,14 +29,17 @@ export function updateSupabaseConfig(url, key) {
     throw new Error('Supabase URL and Anon Key are required');
   }
   
+  const cleanUrl = getCleanUrl(url);
+  const cleanKey = key.trim();
+  
   // Test if we can initialize client (validates URL format)
-  const client = createClient(url, key);
+  const client = createClient(cleanUrl, cleanKey);
   
-  localStorage.setItem('supabase_url', url);
-  localStorage.setItem('supabase_anon_key', key);
+  localStorage.setItem('supabase_url', cleanUrl);
+  localStorage.setItem('supabase_anon_key', cleanKey);
   
-  supabaseUrl = url;
-  supabaseAnonKey = key;
+  supabaseUrl = cleanUrl;
+  supabaseAnonKey = cleanKey;
   supabase = client;
   
   return supabase;
