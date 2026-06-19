@@ -42,6 +42,19 @@ function AppContent() {
     }
   }, [profile]);
 
+  const [showTroubleshoot, setShowTroubleshoot] = useState(false);
+
+  useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => {
+        setShowTroubleshoot(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowTroubleshoot(false);
+    }
+  }, [loading]);
+
   // 1. Database connection check
   if (!isConnected) {
     return <ConnectionSetup />;
@@ -62,6 +75,49 @@ function AppContent() {
       }}>
         <Loader2 className="animate-spin" size={40} style={{ color: 'var(--primary)' }} />
         <div style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Загрузка CRM...</div>
+        
+        {showTroubleshoot && (
+          <div style={{
+            marginTop: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '14px',
+            padding: '20px',
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '12px',
+            maxWidth: '320px',
+            textAlign: 'center',
+            backdropFilter: 'blur(10px)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
+          }} className="animate-fade-in">
+            <div style={{ fontSize: '12px', color: 'var(--text-dark)', lineHeight: '1.5' }}>
+              Загрузка занимает больше времени, чем обычно. Возможно, отсутствует интернет или база данных Supabase приостановила работу.
+            </div>
+            <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+              <button 
+                onClick={() => {
+                  if (confirm('Сбросить настройки подключения к базе данных?')) {
+                    clearSupabaseConfig();
+                    window.location.reload();
+                  }
+                }}
+                className="btn btn-secondary"
+                style={{ flex: 1, padding: '8px 12px', fontSize: '12px', color: 'var(--text-dark)' }}
+              >
+                Сбросить БД
+              </button>
+              <button 
+                onClick={() => window.location.reload()}
+                className="btn btn-primary"
+                style={{ flex: 1, padding: '8px 12px', fontSize: '12px' }}
+              >
+                Обновить
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

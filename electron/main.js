@@ -29,6 +29,14 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
+  // Toggle DevTools on F12 or Ctrl+Shift+I for debugging
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'F12' || (input.control && input.shift && input.key.toLowerCase() === 'i')) {
+      mainWindow.webContents.toggleDevTools();
+      event.preventDefault();
+    }
+  });
+
   // Auto-updater events
   if (app.isPackaged) {
     autoUpdater.checkForUpdatesAndNotify();

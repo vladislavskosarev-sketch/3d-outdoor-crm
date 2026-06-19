@@ -46,38 +46,71 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    // Get current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setUser(session.user);
-        fetchProfile(session.user.id).then((prof) => {
-          setProfile(prof);
-          setLoading(false);
-        });
-      } else {
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
-      }
-    });
+    let active = true;
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+    // Get current session with error safety
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (!active) return;
         if (session) {
           setUser(session.user);
-          const prof = await fetchProfile(session.user.id);
-          setProfile(prof);
+          fetchProfile(session.user.id)
+            .then((prof) => {
+              if (active) {
+                setProfile(prof);
+                setLoading(false);
+              }
+            })
+            .catch((err) => {
+              console.error('Profile fetch error during init:', err);
+              if (active) setLoading(false);
+            });
         } else {
           setUser(null);
           setProfile(null);
+          setLoading(false);
         }
-        setLoading(false);
-      }
-    );
+      })
+      .catch((err) => {
+        console.error('Session fetch error during init:', err);
+        if (active) {
+          setLoading(false);
+        }
+      });
+
+    // Listen for auth changes with try-catch
+    let subscription;
+    try {
+      const res = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          if (!active) return;
+          try {
+            if (session) {
+              setUser(session.user);
+              const prof = await fetchProfile(session.user.id);
+              setProfile(prof);
+            } else {
+              setUser(null);
+              setProfile(null);
+            }
+          } catch (err) {
+            console.error('Auth state change handler error:', err);
+          } finally {
+            if (active) setLoading(false);
+          }
+        }
+      );
+      subscription = res.data?.subscription;
+    } catch (err) {
+      console.error('Failed to subscribe to auth state changes:', err);
+      setLoading(false);
+    }
 
     return () => {
-      subscription.unsubscribe();
+      active = false;
+      if (subscription) {
+        subscription.unsubscribe();
+      }
     };
   }, [isConnected]);
 
