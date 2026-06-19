@@ -1,0 +1,67 @@
+{
+  "name": "crm-3d-outdoor",
+  "version": "1.0.0",
+  "description": "Premium CRM for 3D Printing & Outdoor Advertising",
+  "main": "electron/main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/skosar/3d-outdoor-crm.git"
+  },
+  "scripts": {
+    "dev": "concurrently \"vite\" \"wait-on http://127.0.0.1:5173 && electron .\"",
+    "build": "vite build",
+    "preview": "vite preview",
+    "package": "npm run build && electron-builder",
+    "package-portable": "npm run build && electron-packager . \"3D-Outdoor-CRM\" --platform=win32 --arch=x64 --out=release-portable --overwrite"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.4",
+    "electron-updater": "^6.8.9",
+    "lucide-react": "^0.395.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "concurrently": "^8.2.2",
+    "electron": "^31.0.1",
+    "electron-builder": "^24.13.3",
+    "electron-packager": "^17.1.2",
+    "vite": "^5.2.11",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.crm.printing.outdoor",
+    "productName": "3D & Outdoor CRM",
+    "directories": {
+      "output": "release"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "skosar",
+        "repo": "3d-outdoor-crm"
+      }
+    ],
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico",
+      "artifactName": "${productName}_Setup_${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
