@@ -266,7 +266,7 @@ function AppContent() {
       case 'warehouse':
         return <Warehouse />;
       case 'settings':
-        return <Settings />;
+        return <Settings updateInfo={updateInfo} />;
       default:
         return <Dashboard />;
 

@@ -13,7 +13,7 @@ import {
   HardDrive
 } from 'lucide-react';
 
-export default function Settings() {
+export default function Settings({ updateInfo }) {
   const [activeTab, setActiveTab] = useState('calculators');
   const [saveStatus, setSaveStatus] = useState(null); // { type: 'success'|'error', text: '' }
 
@@ -473,10 +473,45 @@ export default function Settings() {
                     onClick={triggerUpdateCheck}
                     className="btn btn-primary"
                     style={{ padding: '12px 24px', fontSize: '14px' }}
+                    disabled={updateInfo && (updateInfo.status === 'checking' || updateInfo.status === 'downloading')}
                   >
-                    <RefreshCw size={16} /> Проверить наличие обновлений
+                    <RefreshCw size={16} className={updateInfo && (updateInfo.status === 'checking' || updateInfo.status === 'downloading') ? 'animate-spin' : ''} /> Проверить наличие обновлений
                   </button>
                 </div>
+
+                {updateInfo && (
+                  <div style={{
+                    padding: '16px',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                    marginTop: '8px'
+                  }} className="animate-fade-in">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      {updateInfo.status !== 'downloaded' && updateInfo.status !== 'not-available' && updateInfo.status !== 'error' && (
+                        <RefreshCw className="animate-spin" size={14} style={{ color: 'var(--primary)' }} />
+                      )}
+                      <span style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>
+                        {updateInfo.status === 'checking' ? 'Проверка...' : 
+                         updateInfo.status === 'available' ? 'Найдена новая версия' : 
+                         updateInfo.status === 'downloading' ? 'Загрузка...' : 
+                         updateInfo.status === 'downloaded' ? 'Готово к установке' : 
+                         updateInfo.status === 'not-available' ? 'Проверка завершена' : 'Ошибка'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                      {updateInfo.text}
+                    </div>
+                    {updateInfo.status === 'downloading' && (
+                      <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ width: `${updateInfo.percent || 0}%`, height: '100%', background: 'var(--primary)', transition: 'width 0.2s ease-out' }} />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
