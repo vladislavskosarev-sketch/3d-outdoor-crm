@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { CheckSquare, Square, Plus, Trash2, Calendar, AlertCircle, User, Award, X } from 'lucide-react';
+import { CheckSquare, Square, Plus, Trash2, Calendar, AlertCircle, User, Award, X, RefreshCw } from 'lucide-react';
 
 export default function Tasks() {
   const { user } = useAuth();
@@ -154,7 +154,16 @@ export default function Tasks() {
           <h1>Задачи и напоминания</h1>
           <p>Планирование текущих дел и звонков клиентам</p>
         </div>
-        <div className="view-actions">
+        <div className="view-actions" style={{ display: 'flex', gap: '12px' }}>
+          <button 
+            className="btn btn-secondary" 
+            onClick={loadData}
+            disabled={loading}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            {loading ? 'Обновление...' : 'Обновить'}
+          </button>
           <button className="btn btn-primary" onClick={openAddModal}>
             <Plus size={16} />
             Создать задачу

@@ -15,10 +15,31 @@ const getCleanUrl = (url) => {
   return url.trim().replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
 };
 
+const clientOptions = {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false
+  },
+  global: {
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    },
+    fetch: (url, options) => {
+      return fetch(url, {
+        ...options,
+        cache: 'no-store'
+      });
+    }
+  }
+};
+
 if (supabaseUrl && supabaseAnonKey) {
   try {
     const cleanUrl = getCleanUrl(supabaseUrl);
-    supabase = createClient(cleanUrl, supabaseAnonKey.trim());
+    supabase = createClient(cleanUrl, supabaseAnonKey.trim(), clientOptions);
   } catch (error) {
     console.error('Failed to initialize Supabase client:', error);
   }
@@ -33,7 +54,7 @@ export function updateSupabaseConfig(url, key) {
   const cleanKey = key.trim();
   
   // Test if we can initialize client (validates URL format)
-  const client = createClient(cleanUrl, cleanKey);
+  const client = createClient(cleanUrl, cleanKey, clientOptions);
   
   localStorage.setItem('supabase_url', cleanUrl);
   localStorage.setItem('supabase_anon_key', cleanKey);

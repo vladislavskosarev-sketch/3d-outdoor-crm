@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { Archive, Plus, Trash2, Edit2, Loader2, Save, X, Info, AlertTriangle } from 'lucide-react';
+import { Archive, Plus, Trash2, Edit2, Loader2, Save, X, Info, AlertTriangle, RefreshCw } from 'lucide-react';
 
 export default function Warehouse() {
   const { profile } = useAuth();
@@ -273,12 +273,23 @@ INSERT INTO public.inventory_items (name, category, item_type, stock_quantity, u
           </h2>
         </div>
 
-        {canEdit && (
-          <button className="btn btn-primary" onClick={handleOpenAdd} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Plus size={16} />
-            Добавить материал
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button 
+            className="btn btn-secondary" 
+            onClick={fetchInventory}
+            disabled={loading}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            {loading ? 'Обновление...' : 'Обновить'}
           </button>
-        )}
+          {canEdit && (
+            <button className="btn btn-primary" onClick={handleOpenAdd} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Plus size={16} />
+              Добавить материал
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}

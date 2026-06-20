@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { Printer, Image, Check, AlertTriangle, Play, CheckCircle2, RotateCcw, Clock, X } from 'lucide-react';
+import { Printer, Image, Check, AlertTriangle, Play, CheckCircle2, RotateCcw, Clock, X, RefreshCw } from 'lucide-react';
 
 export default function ProductionQueue() {
   const { profile } = useAuth();
@@ -246,33 +246,45 @@ export default function ProductionQueue() {
           <p>Специализированная панель мониторинга печати и сборки конструкций</p>
         </div>
         
-        {/* Toggle queue tabs */}
-        <div style={{ display: 'flex', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-          <button
-            onClick={() => setActiveTab('3d_print')}
-            className="btn"
-            style={{ 
-              background: activeTab === '3d_print' ? 'var(--primary)' : 'transparent',
-              color: 'white',
-              padding: '6px 14px',
-              fontSize: '13px'
-            }}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          {/* Toggle queue tabs */}
+          <div style={{ display: 'flex', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <button
+              onClick={() => setActiveTab('3d_print')}
+              className="btn"
+              style={{ 
+                background: activeTab === '3d_print' ? 'var(--primary)' : 'transparent',
+                color: 'white',
+                padding: '6px 14px',
+                fontSize: '13px'
+              }}
+            >
+              <Printer size={14} />
+              3D Печать
+            </button>
+            <button
+              onClick={() => setActiveTab('outdoor_ads')}
+              className="btn"
+              style={{ 
+                background: activeTab === 'outdoor_ads' ? 'var(--primary)' : 'transparent',
+                color: 'white',
+                padding: '6px 14px',
+                fontSize: '13px'
+              }}
+            >
+              <Image size={14} />
+              Наружная реклама
+            </button>
+          </div>
+
+          <button 
+            className="btn btn-secondary" 
+            onClick={loadJobs}
+            disabled={loading}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '38px', padding: '0 16px' }}
           >
-            <Printer size={14} />
-            3D Печать
-          </button>
-          <button
-            onClick={() => setActiveTab('outdoor_ads')}
-            className="btn"
-            style={{ 
-              background: activeTab === 'outdoor_ads' ? 'var(--primary)' : 'transparent',
-              color: 'white',
-              padding: '6px 14px',
-              fontSize: '13px'
-            }}
-          >
-            <Image size={14} />
-            Наружная реклама
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            {loading ? 'Обновление...' : 'Обновить'}
           </button>
         </div>
       </div>

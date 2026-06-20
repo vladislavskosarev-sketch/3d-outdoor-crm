@@ -8,7 +8,8 @@ import {
   DollarSign, 
   AlertCircle, 
   Clock, 
-  Sparkles 
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -156,7 +157,15 @@ export default function Dashboard() {
             Система работает в штатном режиме. Все данные синхронизированы в реальном времени.
           </p>
         </div>
-        <button className="btn btn-secondary" onClick={loadDashboardData}>Обновить данные</button>
+        <button 
+          className="btn btn-secondary" 
+          onClick={loadDashboardData}
+          disabled={loading}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+        >
+          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          {loading ? 'Обновление...' : 'Обновить данные'}
+        </button>
       </div>
 
       {/* KPI Cards Grid */}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { Search, Plus, User, Phone, Mail, FileText, Check, X, Edit2, Trash2 } from 'lucide-react';
+import { Search, Plus, User, Phone, Mail, FileText, Check, X, Edit2, Trash2, RefreshCw } from 'lucide-react';
 
 export default function Clients() {
   const [clients, setClients] = useState([]);
@@ -136,7 +136,16 @@ export default function Clients() {
           <h1>База клиентов</h1>
           <p>Управление контактами и организациями ваших заказчиков</p>
         </div>
-        <div className="view-actions">
+        <div className="view-actions" style={{ display: 'flex', gap: '12px' }}>
+          <button 
+            className="btn btn-secondary" 
+            onClick={loadClients}
+            disabled={loading}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            {loading ? 'Обновление...' : 'Обновить'}
+          </button>
           <button className="btn btn-primary" onClick={openAddModal}>
             <Plus size={16} />
             Добавить клиента

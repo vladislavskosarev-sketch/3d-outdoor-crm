@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import DealDetailModal from './DealDetailModal';
-import { Plus, Search, Filter, Layers, DollarSign, User, Printer, Tag } from 'lucide-react';
+import { Plus, Search, Filter, Layers, DollarSign, User, Printer, Tag, RefreshCw } from 'lucide-react';
 
 export default function KanbanBoard() {
   const { user } = useAuth();
@@ -192,7 +192,16 @@ export default function KanbanBoard() {
           <h1>Сделки и продажи</h1>
           <p>Kanban-доска воронки продаж и заказов</p>
         </div>
-        <div className="view-actions">
+        <div className="view-actions" style={{ display: 'flex', gap: '12px' }}>
+          <button 
+            className="btn btn-secondary" 
+            onClick={loadDealsData}
+            disabled={loading}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            {loading ? 'Обновление...' : 'Обновить'}
+          </button>
           <button className="btn btn-primary" onClick={() => setIsAddModalOpen(true)}>
             <Plus size={16} />
             Добавить сделку

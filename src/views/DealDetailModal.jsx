@@ -87,14 +87,18 @@ export default function DealDetailModal({ dealId, onClose }) {
     if (!supabase) return;
     setLoading(true);
     try {
-      // 1. Fetch main deal
-      const { data: dealData, error: dealErr } = await supabase
-        .from('deals')
-        .select('*')
-        .eq('id', dealId)
-        .single();
+      // Fetch independent lists in parallel to speed up loading and reduce latency
+      const [dealRes, clientsRes, managersRes, invRes, scrapRes] = await Promise.all([
+        supabase.from('deals').select('*').eq('id', dealId).single(),
+        supabase.from('clients').select('id, name').order('name'),
+        supabase.from('profiles').select('id, full_name').neq('role', 'pending').neq('role', 'disabled'),
+        supabase.from('inventory_items').select('*'),
+        supabase.from('scrap_logs').select('*').eq('deal_id', dealId).order('created_at', { ascending: false })
+      ]);
 
-      if (dealErr) throw dealErr;
+      if (dealRes.error) throw dealRes.error;
+      const dealData = dealRes.data;
+
       setDeal(dealData);
       setTitle(dealData.title || '');
       setCost(dealData.cost || 0);
@@ -109,20 +113,11 @@ export default function DealDetailModal({ dealId, onClose }) {
       setContractorName(dealData.contractor_name || '');
       setContractorCost(dealData.contractor_cost || 0);
 
-      // 2. Fetch Client list
-      const { data: clientsData } = await supabase
-        .from('clients')
-        .select('id, name')
-        .order('name');
-      setClients(clientsData || []);
-
-      // 3. Fetch Managers list
-      const { data: managersData } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .neq('role', 'pending')
-        .neq('role', 'disabled');
-      setManagers(managersData || []);
+      setClients(clientsRes.data || []);
+      setManagers(managersRes.data || []);
+      setInventory(invRes.data || []);
+      setScrapCost(dealData.scrap_cost || 0);
+      setScrapLogs(scrapRes.data || []);
 
       // 4. Fetch 3D print job details if 3D printing deal
       if (dealData.deal_type === '3d_printing') {
@@ -156,9 +151,20 @@ export default function DealDetailModal({ dealId, onClose }) {
             if (s.calcMarkup !== undefined) setCalcMarkup(s.calcMarkup);
           }
         } else {
-          // If sub-row doesn't exist, create it
-          await supabase.from('jobs_3d_print').insert([{ deal_id: dealId }]);
-          loadDealData();
+          // If sub-row doesn't exist, create it safely without recursive loadDealData calls
+          try {
+            const { error: insErr } = await supabase.from('jobs_3d_print').insert([{ deal_id: dealId }]);
+            if (!insErr) {
+              const { data: printDataNew } = await supabase.from('jobs_3d_print').select('*').eq('deal_id', dealId).maybeSingle();
+              if (printDataNew) {
+                setPrintJob(printDataNew);
+                setMaterialType(printDataNew.material_type || 'PLA');
+                setColor(printDataNew.color || 'Black');
+              }
+            }
+          } catch (e) {
+            console.error('Failed to auto-create 3d print job entry:', e);
+          }
         }
       }
 
@@ -200,40 +206,26 @@ export default function DealDetailModal({ dealId, onClose }) {
             if (s.calcOutdoorMarkup !== undefined) setCalcOutdoorMarkup(s.calcOutdoorMarkup);
           }
         } else {
-          // If sub-row doesn't exist, create it
-          await supabase.from('jobs_outdoor_ads').insert([{ deal_id: dealId }]);
-          loadDealData();
+          // If sub-row doesn't exist, create it safely
+          try {
+            const { error: insErr } = await supabase.from('jobs_outdoor_ads').insert([{ deal_id: dealId }]);
+            if (!insErr) {
+              const { data: outdoorDataNew } = await supabase.from('jobs_outdoor_ads').select('*').eq('deal_id', dealId).maybeSingle();
+              if (outdoorDataNew) {
+                setOutdoorJob(outdoorDataNew);
+                setAdType(outdoorDataNew.ad_type || 'Banner');
+              }
+            }
+          } catch (e) {
+            console.error('Failed to auto-create outdoor ad job entry:', e);
+          }
         }
-      }
-
-      // 6. Fetch warehouse items
-      try {
-        const { data: invData } = await supabase
-          .from('inventory_items')
-          .select('*');
-        setInventory(invData || []);
-      } catch (e) {
-        console.warn('Inventory table not available:', e);
-        setInventory([]);
-      }
-
-      // 7. Fetch scrap logs
-      try {
-        setScrapCost(dealData.scrap_cost || 0);
-        const { data: scrapData, error: scrapErr } = await supabase
-          .from('scrap_logs')
-          .select('*')
-          .eq('deal_id', dealId)
-          .order('created_at', { ascending: false });
-        if (scrapErr) throw scrapErr;
-        setScrapLogs(scrapData || []);
-      } catch (e) {
-        console.warn('Scrap logs not available:', e);
-        setScrapLogs([]);
       }
 
     } catch (err) {
       console.error('Error loading deal details:', err);
+      alert('Не удалось загрузить данные сделки: ' + (err.message || String(err)));
+      onClose();
     } finally {
       setLoading(false);
     }
@@ -742,8 +734,32 @@ export default function DealDetailModal({ dealId, onClose }) {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 1000
       }}>
-        <div className="glass-panel" style={{ width: '300px', textAlign: 'center', padding: '24px' }}>
-          Загрузка информации о сделке...
+        <div className="glass-panel" style={{ width: '320px', textAlign: 'center', padding: '24px', position: 'relative' }}>
+          <button 
+            type="button"
+            onClick={onClose} 
+            style={{ 
+              position: 'absolute', 
+              top: '12px', 
+              right: '12px', 
+              background: 'transparent', 
+              border: 'none', 
+              color: 'var(--text-muted)', 
+              cursor: 'pointer' 
+            }}
+          >
+            <X size={16} />
+          </button>
+          <div style={{ color: 'var(--text-primary)', fontWeight: '600', marginBottom: '8px', fontSize: '14px' }}>Загрузка информации...</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>Пожалуйста, подождите. Это может занять некоторое время при медленном подключении.</div>
+          <button 
+            type="button" 
+            className="btn btn-secondary" 
+            style={{ padding: '6px 12px', fontSize: '12px', width: '100%' }}
+            onClick={onClose}
+          >
+            Отмена / Закрыть
+          </button>
         </div>
       </div>
     );
