@@ -1,6 +1,6 @@
 {
   "name": "crm-3d-outdoor",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Premium CRM for 3D Printing & Outdoor Advertising",
   "main": "electron/main.js",
   "repository": {
