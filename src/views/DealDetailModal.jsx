@@ -76,6 +76,12 @@ export default function DealDetailModal({ dealId, onClose }) {
   const [calcOutdoorMarkup, setCalcOutdoorMarkup] = useState(getLocalNum('default_calc_outdoor_markup', 50)); // % markup
   const [outdoorCalcResult, setOutdoorCalcResult] = useState(0);
 
+  // Scrap & Waste States
+  const [scrapCost, setScrapCost] = useState(0);
+  const [scrapLogs, setScrapLogs] = useState([]);
+  const [showAddScrap, setShowAddScrap] = useState(false);
+  const [manualScrap, setManualScrap] = useState({ materialId: '', quantity: '', reason: '', unit: 'pcs' });
+
 
   const loadDealData = async () => {
     if (!supabase) return;
@@ -211,6 +217,21 @@ export default function DealDetailModal({ dealId, onClose }) {
         setInventory([]);
       }
 
+      // 7. Fetch scrap logs
+      try {
+        setScrapCost(dealData.scrap_cost || 0);
+        const { data: scrapData, error: scrapErr } = await supabase
+          .from('scrap_logs')
+          .select('*')
+          .eq('deal_id', dealId)
+          .order('created_at', { ascending: false });
+        if (scrapErr) throw scrapErr;
+        setScrapLogs(scrapData || []);
+      } catch (e) {
+        console.warn('Scrap logs not available:', e);
+        setScrapLogs([]);
+      }
+
     } catch (err) {
       console.error('Error loading deal details:', err);
     } finally {
@@ -221,6 +242,105 @@ export default function DealDetailModal({ dealId, onClose }) {
   useEffect(() => {
     loadDealData();
   }, [dealId]);
+
+  const fetchScrapOnly = async () => {
+    if (!supabase) return;
+    try {
+      const { data: dealData } = await supabase
+        .from('deals')
+        .select('scrap_cost')
+        .eq('id', dealId)
+        .single();
+      if (dealData) {
+        setScrapCost(dealData.scrap_cost || 0);
+      }
+      const { data: scrapData } = await supabase
+        .from('scrap_logs')
+        .select('*')
+        .eq('deal_id', dealId)
+        .order('created_at', { ascending: false });
+      setScrapLogs(scrapData || []);
+    } catch (err) {
+      console.error('Error fetching scrap data:', err);
+    }
+  };
+
+  const handleSaveManualScrap = async () => {
+    if (!manualScrap.materialId) {
+      alert('Пожалуйста, выберите материал.');
+      return;
+    }
+    const qty = Number(manualScrap.quantity);
+    if (isNaN(qty) || qty <= 0) {
+      alert('Пожалуйста, укажите корректное количество.');
+      return;
+    }
+    if (!manualScrap.reason.trim()) {
+      alert('Пожалуйста, укажите причину брака.');
+      return;
+    }
+
+    const selectedItem = inventory.find(i => i.id === manualScrap.materialId);
+    if (!selectedItem) {
+      alert('Выбранный материал не найден.');
+      return;
+    }
+
+    const costOfScrap = qty * selectedItem.price_per_unit;
+
+    try {
+      const { error } = await supabase
+        .from('scrap_logs')
+        .insert([{
+          deal_id: dealId,
+          material_id: manualScrap.materialId,
+          material_name: selectedItem.name,
+          quantity: qty,
+          unit: selectedItem.unit,
+          cost: costOfScrap,
+          reason: manualScrap.reason.trim()
+        }]);
+
+      if (error) throw error;
+
+      // Reset form and refresh scrap data
+      setShowAddScrap(false);
+      setManualScrap({ materialId: '', quantity: '', reason: '', unit: 'pcs' });
+      await fetchScrapOnly();
+      
+      // Update local inventories in parent/modal
+      const { data: invData } = await supabase.from('inventory_items').select('*');
+      setInventory(invData || []);
+
+    } catch (err) {
+      console.error('Error logging manual scrap:', err);
+      alert('Не удалось зарегистрировать брак: ' + err.message);
+    }
+  };
+
+  const handleDeleteScrap = async (logId) => {
+    if (!confirm('Вы действительно хотите удалить эту запись о браке? Списанные материалы будут возвращены на склад.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('scrap_logs')
+        .delete()
+        .eq('id', logId);
+
+      if (error) throw error;
+
+      await fetchScrapOnly();
+
+      // Refresh inventory stock
+      const { data: invData } = await supabase.from('inventory_items').select('*');
+      setInventory(invData || []);
+    } catch (err) {
+      console.error('Error deleting scrap log:', err);
+      alert('Не удалось удалить запись о браке: ' + err.message);
+    }
+  };
 
   // Handle 3D print calculations in real-time
   useEffect(() => {
@@ -880,12 +1000,219 @@ export default function DealDetailModal({ dealId, onClose }) {
                 </div>
               )}
               
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', paddingTop: '4px' }}>
-                <span>Чистая маржа с учетом аутсорсинга:</span>
-                <span style={{ fontWeight: '700', color: 'var(--success)' }}>
-                  {new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(Math.max(0, Number(cost) - (isOutsourced ? contractorCost : 0)))}
+            </div>
+
+            {/* Financial Summary & Profitability */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '10px',
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
+                📊 Финансовый итог сделки
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Бюджет сделки:</span>
+                  <span style={{ fontWeight: '600' }}>
+                    {new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(Number(cost))}
+                  </span>
+                </div>
+                {isOutsourced && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Расходы на подрядчика:</span>
+                    <span style={{ fontWeight: '600', color: 'var(--error)' }}>
+                      -{new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(Number(contractorCost))}
+                    </span>
+                  </div>
+                )}
+                {scrapCost > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Потери от брака:</span>
+                    <span style={{ fontWeight: '600', color: 'var(--error)' }}>
+                      -{new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(scrapCost)}
+                    </span>
+                  </div>
+                )}
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  borderTop: '1px solid rgba(255,255,255,0.05)', 
+                  paddingTop: '8px',
+                  fontWeight: '700'
+                }}>
+                  <span>Чистая прибыль:</span>
+                  <span style={{ color: 'var(--success)' }}>
+                    {new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(
+                      Number(cost) - (isOutsourced ? Number(contractorCost) : 0) - scrapCost
+                    )}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Scrap & Waste Analytics section */}
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.03)',
+              border: '1px solid rgba(239, 68, 68, 0.15)',
+              borderRadius: '10px',
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                  ⚠️ Брак и технологические отходы
+                </span>
+                <span style={{ fontSize: '12px', color: 'var(--error)', fontWeight: '700' }}>
+                  {new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(scrapCost)}
                 </span>
               </div>
+
+              {scrapLogs.length === 0 ? (
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0' }}>
+                  Брак не зарегистрирован
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto', maxHeight: '180px', overflowY: 'auto' }}>
+                  <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)', textAlign: 'left' }}>
+                        <th style={{ padding: '6px 4px' }}>Материал</th>
+                        <th style={{ padding: '6px 4px' }}>Кол-во</th>
+                        <th style={{ padding: '6px 4px' }}>Потери</th>
+                        <th style={{ padding: '6px 4px' }}>Причина</th>
+                        <th style={{ padding: '6px 4px', width: '24px' }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {scrapLogs.map((log) => (
+                        <tr key={log.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          <td style={{ padding: '6px 4px' }}>{log.material_name}</td>
+                          <td style={{ padding: '6px 4px' }}>{log.quantity} {log.unit}</td>
+                          <td style={{ padding: '6px 4px', color: 'var(--error)' }}>
+                            {new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(log.cost)}
+                          </td>
+                          <td style={{ padding: '6px 4px', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.reason}>
+                            {log.reason}
+                          </td>
+                          <td style={{ padding: '6px 4px', textAlign: 'right' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteScrap(log.id)}
+                              style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0' }}
+                              className="hover-danger"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Add manual scrap trigger */}
+              {!showAddScrap ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ width: '100%', padding: '6px 0', fontSize: '12px' }}
+                  onClick={() => setShowAddScrap(true)}
+                >
+                  + Зарегистрировать брак вручную
+                </button>
+              ) : (
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.01)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  borderRadius: '6px',
+                  padding: '10px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  marginTop: '4px'
+                }}>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Новая запись о браке:</div>
+                  <div className="form-group" style={{ marginBottom: '0' }}>
+                    <label className="form-label" style={{ fontSize: '10px' }}>МАТЕРИАЛ ИЗ СКЛАДА</label>
+                    <select
+                      className="form-control"
+                      style={{ padding: '4px 8px', fontSize: '11px', height: 'auto' }}
+                      value={manualScrap.materialId}
+                      onChange={(e) => {
+                        const sel = inventory.find(i => i.id === e.target.value);
+                        setManualScrap(prev => ({
+                          ...prev,
+                          materialId: e.target.value,
+                          unit: sel ? sel.unit : 'pcs'
+                        }));
+                      }}
+                    >
+                      <option value="">-- Выберите материал --</option>
+                      {inventory.map(item => (
+                        <option key={item.id} value={item.id}>
+                          {item.name} ({item.stock_quantity} {item.unit} в наличии - {item.price_per_unit} руб/{item.unit})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-row" style={{ gap: '8px' }}>
+                    <div className="form-group" style={{ marginBottom: '0', flex: 1 }}>
+                      <label className="form-label" style={{ fontSize: '10px' }}>КОЛ-ВО ({manualScrap.unit})</label>
+                      <input
+                        type="number"
+                        step="any"
+                        className="form-control"
+                        style={{ padding: '4px 8px', fontSize: '11px', height: 'auto' }}
+                        value={manualScrap.quantity}
+                        onChange={(e) => setManualScrap(prev => ({ ...prev, quantity: e.target.value }))}
+                        placeholder="0.0"
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: '0', flex: 2 }}>
+                      <label className="form-label" style={{ fontSize: '10px' }}>ПРИЧИНА</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        style={{ padding: '4px 8px', fontSize: '11px', height: 'auto' }}
+                        value={manualScrap.reason}
+                        onChange={(e) => setManualScrap(prev => ({ ...prev, reason: e.target.value }))}
+                        placeholder="Например, сбой станка"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ flex: 1, padding: '4px 0', fontSize: '11px' }}
+                      onClick={() => {
+                        setShowAddScrap(false);
+                        setManualScrap({ materialId: '', quantity: '', reason: '', unit: 'pcs' });
+                      }}
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ flex: 1, padding: '4px 0', fontSize: '11px', background: 'var(--error)' }}
+                      onClick={handleSaveManualScrap}
+                    >
+                      Сохранить
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="form-group" style={{ minHeight: '100px' }}>

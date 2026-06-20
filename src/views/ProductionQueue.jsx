@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { Printer, Image, Check, AlertTriangle, Play, CheckCircle2, RotateCcw, Clock } from 'lucide-react';
+import { Printer, Image, Check, AlertTriangle, Play, CheckCircle2, RotateCcw, Clock, X } from 'lucide-react';
 
 export default function ProductionQueue() {
   const { profile } = useAuth();
@@ -9,6 +9,28 @@ export default function ProductionQueue() {
   const [printJobs, setPrintJobs] = useState([]);
   const [outdoorJobs, setOutdoorJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [inventory, setInventory] = useState([]);
+  const [scrapModal, setScrapModal] = useState({
+    isOpen: false,
+    job: null,
+    jobType: '3d_print',
+    quantity: '',
+    materialId: '',
+    reason: '',
+    materialsList: []
+  });
+
+  const loadInventory = async () => {
+    try {
+      const { data } = await supabase
+        .from('inventory_items')
+        .select('*')
+        .order('name', { ascending: true });
+      setInventory(data || []);
+    } catch (e) {
+      console.error('Error fetching inventory:', e);
+    }
+  };
 
   const loadJobs = async () => {
     if (!supabase) return;
@@ -41,6 +63,7 @@ export default function ProductionQueue() {
 
   useEffect(() => {
     loadJobs();
+    loadInventory();
 
     // Subscribe to realtime changes in jobs
     const channel = supabase
@@ -85,6 +108,90 @@ export default function ProductionQueue() {
     } catch (err) {
       console.error('Update outdoor status error:', err);
       alert('Ошибка при обновлении статуса производства рекламы.');
+    }
+  };
+
+  const openScrapModalForPrint = (job) => {
+    const matchingItem = inventory.find(item => 
+      item.category === '3d_print' && 
+      item.name.toLowerCase().includes(job.material_type.toLowerCase())
+    );
+    
+    setScrapModal({
+      isOpen: true,
+      job,
+      jobType: '3d_print',
+      quantity: job.weight_grams || 0,
+      materialId: matchingItem ? matchingItem.id : '',
+      reason: 'Отслоение модели',
+      materialsList: inventory.filter(item => item.category === '3d_print')
+    });
+  };
+
+  const openScrapModalForOutdoor = (job) => {
+    setScrapModal({
+      isOpen: true,
+      job,
+      jobType: 'outdoor_ads',
+      quantity: '',
+      materialId: '',
+      reason: '',
+      materialsList: inventory.filter(item => item.category === 'outdoor_ads')
+    });
+  };
+
+  const handleSaveScrap = async (e) => {
+    e.preventDefault();
+    if (!scrapModal.materialId) {
+      alert('Пожалуйста, выберите материал из списка.');
+      return;
+    }
+    if (!scrapModal.quantity || Number(scrapModal.quantity) <= 0) {
+      alert('Пожалуйста, укажите корректное количество.');
+      return;
+    }
+    if (!scrapModal.reason.trim()) {
+      alert('Пожалуйста, укажите причину брака.');
+      return;
+    }
+
+    const selectedMaterial = inventory.find(item => item.id === scrapModal.materialId);
+    if (!selectedMaterial) return;
+
+    let finalQty = Number(scrapModal.quantity);
+    let finalCost = finalQty * Number(selectedMaterial.price_per_unit);
+
+    if (scrapModal.jobType === '3d_print') {
+      finalQty = finalQty / 1000; // convert grams to kg
+      finalCost = finalQty * Number(selectedMaterial.price_per_unit);
+    }
+
+    try {
+      const { error: scrapErr } = await supabase
+        .from('scrap_logs')
+        .insert([{
+          deal_id: scrapModal.job.deal_id,
+          material_id: scrapModal.materialId,
+          material_name: selectedMaterial.name,
+          quantity: finalQty,
+          unit: selectedMaterial.unit,
+          cost: finalCost,
+          reason: scrapModal.reason.trim()
+        }]);
+
+      if (scrapErr) throw scrapErr;
+
+      if (scrapModal.jobType === '3d_print') {
+        await updatePrintStatus(scrapModal.job.id, 'failed');
+      } else {
+        alert('Брак/отходы успешно зарегистрированы и списаны со склада!');
+      }
+
+      setScrapModal(prev => ({ ...prev, isOpen: false }));
+      loadJobs();
+    } catch (err) {
+      console.error('Failed to log scrap:', err);
+      alert('Ошибка при регистрации брака: ' + err.message);
     }
   };
 
@@ -257,7 +364,7 @@ export default function ProductionQueue() {
                         <button 
                           className="btn btn-danger" 
                           style={{ padding: '6px 12px', fontSize: '12px' }}
-                          onClick={() => updatePrintStatus(job.id, 'failed')}
+                          onClick={() => openScrapModalForPrint(job)}
                         >
                           <AlertTriangle size={12} /> Брак / Ошибка
                         </button>
@@ -357,6 +464,15 @@ export default function ProductionQueue() {
                     borderTop: '1px solid var(--border-color)',
                     justifyContent: 'flex-end'
                   }}>
+                    {job.status !== 'completed' && (
+                      <button 
+                        className="btn btn-secondary" 
+                        style={{ padding: '6px 12px', fontSize: '12px', color: 'var(--error)', borderColor: 'rgba(239, 68, 68, 0.2)' }}
+                        onClick={() => openScrapModalForOutdoor(job)}
+                      >
+                        <AlertTriangle size={12} /> Брак / Отход
+                      </button>
+                    )}
                     {job.status === 'design' && (
                       <button 
                         className="btn btn-secondary" 
@@ -409,6 +525,108 @@ export default function ProductionQueue() {
           )
         )}
       </div>
+
+      {/* Scrap Modal */}
+      {scrapModal.isOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div className="glass-panel animate-fade-in" style={{ width: '450px', border: '1px solid var(--border-hover)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', fontFamily: 'Outfit' }}>
+                {scrapModal.jobType === '3d_print' ? 'Регистрация брака 3D-печати' : 'Регистрация брака/отходов рекламы'}
+              </h3>
+              <button 
+                onClick={() => setScrapModal(prev => ({ ...prev, isOpen: false }))}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveScrap}>
+              <div className="form-group">
+                <label className="form-label">Сделка</label>
+                <input type="text" className="form-control" value={scrapModal.job?.deals?.title || 'Без названия'} readOnly />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Выберите материал со склада</label>
+                <select 
+                  className="form-control" 
+                  value={scrapModal.materialId}
+                  onChange={(e) => setScrapModal(prev => ({ ...prev, materialId: e.target.value }))}
+                  required
+                >
+                  <option value="">-- Выберите материал --</option>
+                  {scrapModal.materialsList.map(item => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} (остаток: {item.stock_quantity} {item.unit}, цена: {item.price_per_unit} руб.)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  {scrapModal.jobType === '3d_print' ? 'Вес брака (грамм)' : 'Количество'}
+                </label>
+                <input 
+                  type="number" 
+                  step="any"
+                  className="form-control" 
+                  placeholder={scrapModal.jobType === '3d_print' ? 'Например, 150' : 'Укажите количество'} 
+                  value={scrapModal.quantity}
+                  onChange={(e) => setScrapModal(prev => ({ ...prev, quantity: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Причина брака / списания</label>
+                {scrapModal.jobType === '3d_print' ? (
+                  <select 
+                    className="form-control"
+                    value={scrapModal.reason}
+                    onChange={(e) => setScrapModal(prev => ({ ...prev, reason: e.target.value }))}
+                    required
+                  >
+                    <option value="Отслоение модели">Отслоение модели от стола</option>
+                    <option value="Засорение сопла">Засорение сопла</option>
+                    <option value="Обрыв пластика">Обрыв / запутывание пластика</option>
+                    <option value="Сбой электропитания">Сбой электропитания</option>
+                    <option value="Другая причина">Другая техническая причина</option>
+                  </select>
+                ) : (
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="Например, ошибка порезки, повреждение баннера" 
+                    value={scrapModal.reason}
+                    onChange={(e) => setScrapModal(prev => ({ ...prev, reason: e.target.value }))}
+                    required
+                  />
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setScrapModal(prev => ({ ...prev, isOpen: false }))}>Отмена</button>
+                <button type="submit" className="btn btn-primary" style={{ background: 'var(--error)', borderColor: 'var(--error)' }}>Зарегистрировать списание</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -21,6 +21,7 @@ export default function Dashboard() {
     receivedPayments: 0,
     outstandingDebt: 0,
     netMargin: 0,
+    scrapLosses: 0,
   });
   const [recentTasks, setRecentTasks] = useState([]);
   const [printerQueue, setPrinterQueue] = useState([]);
@@ -34,7 +35,7 @@ export default function Dashboard() {
       // 1. Fetch Deals Stats with new payment & outsourcing fields
       const { data: deals, error: dealsErr } = await supabase
         .from('deals')
-        .select('cost, stage, deal_type, prepayment, is_outsourced, contractor_cost');
+        .select('cost, stage, deal_type, prepayment, is_outsourced, contractor_cost, scrap_cost');
       
       if (dealsErr) throw dealsErr;
 
@@ -43,12 +44,14 @@ export default function Dashboard() {
       let totalReceivedPayments = 0;
       let totalOutstandingDebt = 0;
       let totalNetMargin = 0;
+      let totalScrapLosses = 0;
       const stages = {};
       
       deals?.forEach(deal => {
         const dealCost = Number(deal.cost || 0);
         const dealPrepayment = Number(deal.prepayment || 0);
         const dealContractorCost = deal.is_outsourced ? Number(deal.contractor_cost || 0) : 0;
+        const dealScrapCost = Number(deal.scrap_cost || 0);
 
         // Active pipeline calculations (excluding closed deals)
         if (deal.stage !== 'closed_won' && deal.stage !== 'closed_lost') {
@@ -60,9 +63,10 @@ export default function Dashboard() {
         // Total payments received (from all deals)
         totalReceivedPayments += dealPrepayment;
 
-        // Net margin (revenues minus contractor cost) - exclude lost deals
+        // Total scrap losses (from all active/won deals)
         if (deal.stage !== 'closed_lost') {
-          totalNetMargin += (dealCost - dealContractorCost);
+          totalScrapLosses += dealScrapCost;
+          totalNetMargin += (dealCost - dealContractorCost - dealScrapCost);
         }
 
         stages[deal.stage] = (stages[deal.stage] || 0) + 1;
@@ -94,6 +98,7 @@ export default function Dashboard() {
         receivedPayments: totalReceivedPayments,
         outstandingDebt: totalOutstandingDebt,
         netMargin: totalNetMargin,
+        scrapLosses: totalScrapLosses,
       });
       setRecentTasks(tasksData || []);
       setPrinterQueue(activePrintsData || []);
@@ -245,6 +250,24 @@ export default function Dashboard() {
             <div style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '500' }}>Чистая прибыль</div>
             <div style={{ fontSize: '24px', fontWeight: '800', marginTop: '4px', fontFamily: 'Outfit', color: '#10b981' }}>
               {new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(stats.netMargin)}
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 6: Scrap Losses */}
+        <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '20px 24px' }}>
+          <div style={{
+            background: 'rgba(239, 68, 68, 0.15)',
+            color: 'var(--error)',
+            padding: '12px',
+            borderRadius: '12px'
+          }}>
+            <AlertCircle size={24} />
+          </div>
+          <div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '500' }}>Потери от брака</div>
+            <div style={{ fontSize: '24px', fontWeight: '800', marginTop: '4px', fontFamily: 'Outfit', color: 'var(--error)' }}>
+              {new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(stats.scrapLosses)}
             </div>
           </div>
         </div>
