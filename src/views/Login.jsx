@@ -71,7 +71,7 @@ export default function Login() {
       <div className="glass-panel animate-fade-in" style={{ width: '400px' }}>
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <h2 style={{ fontSize: '28px', fontWeight: '800', fontFamily: 'Outfit', letterSpacing: '-0.03em' }}>
-            CRM <span style={{ color: 'var(--primary)' }}>3D & AD</span>
+            PrintPulse <span style={{ color: 'var(--primary)' }}>CRM</span>
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '6px' }}>
             {isRegister ? 'Создайте учетную запись сотрудника' : 'Войдите в личный кабинет'}

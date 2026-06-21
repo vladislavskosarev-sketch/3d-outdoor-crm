@@ -444,10 +444,10 @@ export default function Settings({ updateInfo }) {
                   </div>
                   <div>
                     <h3 style={{ fontSize: '18px', fontWeight: '700', margin: 0, fontFamily: 'Outfit' }}>
-                      3D & AD CRM Desktop
+                      PrintPulse CRM Desktop
                     </h3>
                     <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      Текущая версия приложения: <strong>v1.0.4</strong>
+                      Текущая версия приложения: <strong>v1.0.4.1</strong>
                     </p>
                   </div>
                 </div>

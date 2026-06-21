@@ -161,7 +161,7 @@ export default function ConnectionSetup() {
           </div>
           <ol style={{ paddingLeft: '16px', lineHeight: '1.6' }}>
             <li>Создайте бесплатный аккаунт на <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--secondary)', textDecoration: 'none' }}>supabase.com</a></li>
-            <li>Создайте новый проект (Project Name: <b>CRM-3D-Outdoor</b>)</li>
+            <li>Создайте новый проект (Project Name: <b>PrintPulse-CRM</b>)</li>
             <li>Перейдите в настройки <b>Project Settings → API</b></li>
             <li>Скопируйте <b>Project URL</b> и <b>anon/public Key</b> и вставьте их выше</li>
             <li>Запустите SQL-скрипт (файл <code>supabase_schema.sql</code> в корне проекта) в разделе <b>SQL Editor</b> в панели Supabase</li>

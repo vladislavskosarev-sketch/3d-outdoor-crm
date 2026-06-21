@@ -5,7 +5,7 @@ async function bundle() {
   try {
     const appPaths = await packager({
       dir: '.',
-      name: '3D-Outdoor-CRM',
+      name: 'PrintPulse-CRM',
       platform: 'win32',
       arch: 'x64',
       out: 'release-portable',

@@ -79,7 +79,7 @@ export default function Sidebar({ activeView, onViewChange }) {
       }}>
         <img 
           src={logoImg} 
-          alt="3D & AD CRM Logo" 
+          alt="PrintPulse CRM Logo" 
           style={{
             width: '32px',
             height: '32px',
@@ -96,7 +96,7 @@ export default function Sidebar({ activeView, onViewChange }) {
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent'
         }}>
-          3D & AD CRM
+          PrintPulse CRM
         </span>
       </div>
 

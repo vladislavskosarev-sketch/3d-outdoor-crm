@@ -1,7 +1,7 @@
 {
-  "name": "crm-3d-outdoor",
-  "version": "1.0.4",
-  "description": "Premium CRM for 3D Printing & Outdoor Advertising",
+  "name": "printpulse-crm",
+  "version": "1.0.4-patch.1",
+  "description": "PrintPulse CRM - Premium CRM for 3D Printing, Outdoor Advertising & Typography",
   "main": "electron/main.js",
   "repository": {
     "type": "git",
@@ -12,7 +12,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "package": "npm run build && electron-builder",
-    "package-portable": "npm run build && electron-packager . \"3D-Outdoor-CRM\" --platform=win32 --arch=x64 --out=release-portable --overwrite"
+    "package-portable": "npm run build && electron-packager . \"PrintPulse-CRM\" --platform=win32 --arch=x64 --out=release-portable --overwrite"
   },
   "keywords": [],
   "author": "",
@@ -37,7 +37,7 @@
   },
   "build": {
     "appId": "com.crm.printing.outdoor",
-    "productName": "3D & Outdoor CRM",
+    "productName": "PrintPulse CRM",
     "directories": {
       "output": "release"
     },
@@ -55,7 +55,7 @@
     "win": {
       "target": "nsis",
       "icon": "build/icon.ico",
-      "artifactName": "crm-3d-outdoor-setup-${version}.${ext}"
+      "artifactName": "printpulse-crm-setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,

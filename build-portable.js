@@ -4,7 +4,7 @@ const path = require('path');
 
 const projectDir = 'F:\\Fold\\CRM';
 const releaseDir = path.join(projectDir, 'release-portable');
-const appDir = path.join(releaseDir, '3D-Outdoor-CRM-win32-x64');
+const appDir = path.join(releaseDir, 'PrintPulse-CRM-win32-x64');
 const cacheZip = 'C:\\Users\\Skosar\\AppData\\Local\\electron\\Cache\\electron-v31.7.7-win32-x64.zip';
 const sevenZip = path.join(projectDir, 'node_modules\\7zip-bin\\win\\x64\\7za.exe');
 
@@ -35,7 +35,7 @@ try {
   // Write minimal package.json
   console.log('6. Writing app package.json...');
   const appPackageJson = {
-    name: 'crm-3d-outdoor',
+    name: 'printpulse-crm',
     version: '1.0.0',
     main: 'electron/main.js'
   };
@@ -46,7 +46,7 @@ try {
 
   console.log('7. Renaming executable...');
   const srcExe = path.join(appDir, 'electron.exe');
-  const destExe = path.join(appDir, '3D-Outdoor-CRM.exe');
+  const destExe = path.join(appDir, 'PrintPulse-CRM.exe');
   let renamed = false;
   
   for (let i = 0; i < 10; i++) {
@@ -66,7 +66,7 @@ try {
   }
   
   if (!renamed && !fs.existsSync(destExe)) {
-    throw new Error('Could not rename electron.exe to 3D-Outdoor-CRM.exe (file locked by OS/Antivirus)');
+    throw new Error('Could not rename electron.exe to PrintPulse-CRM.exe (file locked by OS/Antivirus)');
   }
 
   console.log('\n========================================');
