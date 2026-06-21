@@ -89,9 +89,11 @@ CREATE TABLE IF NOT EXISTS public.scrap_logs (
 ALTER TABLE public.scrap_logs ENABLE ROW LEVEL SECURITY;
 
 -- 5. Create RLS Policies
+DROP POLICY IF EXISTS "Scrap logs are readable by authenticated users" ON public.scrap_logs;
 CREATE POLICY "Scrap logs are readable by authenticated users" ON public.scrap_logs
   FOR SELECT TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Scrap logs are manageable by authenticated users" ON public.scrap_logs;
 CREATE POLICY "Scrap logs are manageable by authenticated users" ON public.scrap_logs
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
