@@ -447,7 +447,7 @@ export default function Settings({ updateInfo }) {
                       3D & AD CRM Desktop
                     </h3>
                     <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      Текущая версия приложения: <strong>v1.0.3</strong>
+                      Текущая версия приложения: <strong>v1.0.4</strong>
                     </p>
                   </div>
                 </div>

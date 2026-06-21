@@ -27,6 +27,7 @@ export default function Dashboard() {
   const [recentTasks, setRecentTasks] = useState([]);
   const [printerQueue, setPrinterQueue] = useState([]);
   const [stageCounts, setStageCounts] = useState({});
+  const [criticalStocks, setCriticalStocks] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const loadDashboardData = async () => {
@@ -91,6 +92,15 @@ export default function Dashboard() {
 
       if (tasksErr) throw tasksErr;
 
+      // 4. Fetch Inventory Items for critical stock alerts
+      const { data: invData } = await supabase
+        .from('inventory_items')
+        .select('name, stock_quantity, min_stock_level, unit');
+
+      const criticalItems = invData?.filter(item => 
+        Number(item.stock_quantity) <= Number(item.min_stock_level || 0)
+      ) || [];
+
       setStats({
         totalDeals: activeDealsCount,
         pipelineValue: totalValue,
@@ -104,6 +114,7 @@ export default function Dashboard() {
       setRecentTasks(tasksData || []);
       setPrinterQueue(activePrintsData || []);
       setStageCounts(stages);
+      setCriticalStocks(criticalItems);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
@@ -167,6 +178,40 @@ export default function Dashboard() {
           {loading ? 'Обновление...' : 'Обновить данные'}
         </button>
       </div>
+
+      {/* Critical Stock Alert Banner */}
+      {profile && (profile.role === 'admin' || profile.role === 'manager') && criticalStocks.length > 0 && (
+        <div className="glass-panel animate-fade-in" style={{
+          background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(245, 158, 11, 0.1) 100%)',
+          border: '1px solid rgba(239, 68, 68, 0.3)',
+          borderRadius: '16px',
+          padding: '20px 24px',
+          marginBottom: '32px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--error)', fontWeight: '700', fontSize: '15px' }}>
+            <AlertCircle size={20} />
+            <span>Внимание: Критические остатки на складе!</span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {criticalStocks.map((item, idx) => (
+              <span key={idx} className="badge" style={{
+                background: 'rgba(239, 68, 68, 0.2)',
+                color: 'var(--error)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                fontSize: '12px',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                fontWeight: '600'
+              }}>
+                {item.name}: {item.stock_quantity} {item.unit} (мин. {item.min_stock_level})
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards Grid */}
       <div style={{

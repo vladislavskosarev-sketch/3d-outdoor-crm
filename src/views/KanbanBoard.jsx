@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import DealDetailModal from './DealDetailModal';
@@ -71,6 +71,8 @@ export default function KanbanBoard() {
     }
   };
 
+  const boardContainerRef = useRef(null);
+
   useEffect(() => {
     loadDealsData();
 
@@ -82,6 +84,20 @@ export default function KanbanBoard() {
 
     return () => {
       supabase.removeChannel(channel);
+    };
+  }, []);
+
+  useEffect(() => {
+    const el = boardContainerRef.current;
+    if (!el) return;
+    const handleWheel = (e) => {
+      if (e.deltaY === 0) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
     };
   }, []);
 
@@ -266,15 +282,18 @@ export default function KanbanBoard() {
       </div>
 
       {/* Kanban Board columns scroll area */}
-      <div style={{ 
-        flex: 1, 
-        overflowX: 'auto', 
-        overflowY: 'hidden', 
-        display: 'flex', 
-        padding: '24px 32px',
-        gap: '16px',
-        background: '#070a13'
-      }}>
+      <div 
+        ref={boardContainerRef}
+        style={{ 
+          flex: 1, 
+          overflowX: 'auto', 
+          overflowY: 'hidden', 
+          display: 'flex', 
+          padding: '24px 32px',
+          gap: '16px',
+          background: '#070a13'
+        }}
+      >
         {stages.map(stage => {
           const stageDeals = filteredDeals.filter(d => d.stage === stage.id);
           const stageSum = stageDeals.reduce((a, b) => a + Number(b.cost || 0), 0);

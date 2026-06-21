@@ -19,6 +19,7 @@ export default function Warehouse() {
   const [stockQuantity, setStockQuantity] = useState(0);
   const [unit, setUnit] = useState('kg');
   const [pricePerUnit, setPricePerUnit] = useState(0);
+  const [minStockLevel, setMinStockLevel] = useState(0);
   const [saving, setSaving] = useState(false);
 
   const canEdit = profile && (profile.role === 'admin' || profile.role === 'manager');
@@ -62,6 +63,7 @@ export default function Warehouse() {
     setStockQuantity(0);
     setUnit(activeTab === '3d_print' ? 'kg' : 'sqm');
     setPricePerUnit(0);
+    setMinStockLevel(0);
     setShowModal(true);
   };
 
@@ -73,6 +75,7 @@ export default function Warehouse() {
     setStockQuantity(Number(item.stock_quantity) || 0);
     setUnit(item.unit);
     setPricePerUnit(Number(item.price_per_unit) || 0);
+    setMinStockLevel(Number(item.min_stock_level) || 0);
     setShowModal(true);
   };
 
@@ -87,7 +90,8 @@ export default function Warehouse() {
         item_type: itemType,
         stock_quantity: Number(stockQuantity),
         unit,
-        price_per_unit: Number(pricePerUnit)
+        price_per_unit: Number(pricePerUnit),
+        min_stock_level: Number(minStockLevel)
       };
 
       if (editingItem) {
@@ -152,12 +156,10 @@ export default function Warehouse() {
   };
 
   // Helper style badges for stock quantity
-  const getStockStatus = (qty, unit) => {
+  const getStockStatus = (qty, minLevel) => {
+    const min = Number(minLevel || 0);
     if (qty <= 0) return { label: 'Нет на складе', class: 'badge-admin' }; // Red color
-    if (unit === 'kg' && qty < 2) return { label: 'Мало', class: 'badge-pending' }; // Yellow
-    if (unit === 'pcs' && qty < 50) return { label: 'Мало', class: 'badge-pending' };
-    if (unit === 'sqm' && qty < 20) return { label: 'Мало', class: 'badge-pending' };
-    if (unit === 'meters' && qty < 15) return { label: 'Мало', class: 'badge-pending' };
+    if (qty <= min) return { label: 'Критический остаток', class: 'badge-pending' }; // Yellow
     return { label: 'В наличии', class: 'badge-technician' }; // Green color
   };
 
@@ -349,7 +351,7 @@ INSERT INTO public.inventory_items (name, category, item_type, stock_quantity, u
             </thead>
             <tbody>
               {filteredItems.map((item) => {
-                const stockStatus = getStockStatus(item.stock_quantity, item.unit);
+                const stockStatus = getStockStatus(item.stock_quantity, item.min_stock_level);
                 return (
                   <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', transition: 'var(--transition)' }}>
                     <td style={{ padding: '16px 24px', fontWeight: '600', color: 'var(--text-primary)' }}>{item.name}</td>
@@ -361,6 +363,11 @@ INSERT INTO public.inventory_items (name, category, item_type, stock_quantity, u
                           {stockStatus.label}
                         </span>
                       </div>
+                      {Number(item.min_stock_level) > 0 && (
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          Минимум: {item.min_stock_level} {item.unit}
+                        </div>
+                      )}
                     </td>
                     <td style={{ padding: '16px 24px', fontWeight: '600', color: 'var(--text-primary)' }}>
                       {item.price_per_unit} руб. / {item.unit}
@@ -499,15 +506,28 @@ INSERT INTO public.inventory_items (name, category, item_type, stock_quantity, u
               </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">СТОИМОСТЬ ЗА ЕДИНИЦУ (РУБ)</label>
-              <input 
-                type="number" 
-                className="form-control" 
-                value={pricePerUnit} 
-                onChange={(e) => setPricePerUnit(Number(e.target.value))} 
-                required
-              />
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">СТОИМОСТЬ ЗА ЕДИНИЦУ (РУБ) *</label>
+                <input 
+                  type="number" 
+                  className="form-control" 
+                  value={pricePerUnit} 
+                  onChange={(e) => setPricePerUnit(Number(e.target.value))} 
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">КРИТИЧЕСКИЙ МИНИМУМ</label>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  className="form-control" 
+                  value={minStockLevel} 
+                  onChange={(e) => setMinStockLevel(Number(e.target.value))} 
+                />
+              </div>
             </div>
 
             <div style={{ display: 'flex', justifyBetween: 'space-between', gap: '12px', marginTop: '10px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>

@@ -234,6 +234,7 @@ CREATE TABLE IF NOT EXISTS public.inventory_items (
     stock_quantity NUMERIC DEFAULT 0.0 NOT NULL,
     unit TEXT DEFAULT 'pcs' NOT NULL, -- 'kg', 'sqm', 'meters', 'pcs'
     price_per_unit NUMERIC DEFAULT 0.0 NOT NULL,
+    min_stock_level NUMERIC DEFAULT 0.0 NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
